@@ -1,0 +1,122 @@
+name: WhatCoverage
+description: Verified WhatCoverage PR diff coverage with optional non-blocking gating and PR comments
+author: junebash
+
+branding:
+  icon: check-circle
+  color: purple
+
+inputs:
+  coverage-input:
+    description: Path to an LLVM coverage export JSON file or an Xcode .xcresult bundle
+    required: true
+  base:
+    description: Base Git revision (use the pull request base SHA)
+    required: true
+  head:
+    description: Head Git revision (use the pull request head SHA)
+    required: false
+    default: HEAD
+  format:
+    description: Optional input format override (llvm or xcode)
+    required: false
+  comparison:
+    description: Git comparison mode (merge-base or direct)
+    required: false
+    default: merge-base
+  captured-source-root:
+    description: Absolute source root recorded when coverage was captured
+    required: false
+  minimum:
+    description: Optional minimum diff coverage percentage; overrides configuration
+    required: false
+  config:
+    description: Optional repository-relative WhatCoverage TOML configuration path
+    required: false
+  no-config:
+    description: Disable .whatcoverage.toml discovery
+    required: false
+    default: "false"
+  markdown-output:
+    description: Repository-relative or absolute Markdown report path
+    required: false
+    default: what-coverage-report.md
+  json-output:
+    description: Repository-relative or absolute JSON report path
+    required: false
+    default: what-coverage-report.json
+  whatcoverage-version:
+    description: Pinned upstream WhatCoverage release version supported by this action
+    required: false
+    default: 0.6.0
+  executable:
+    description: Explicit trusted local what-coverage executable; skips download and verification
+    required: false
+  comment:
+    description: Post or update the rendered Markdown on the pull request
+    required: false
+    default: "true"
+  pr-number:
+    description: Pull request number; inferred from pull_request events when omitted
+    required: false
+  github-token:
+    description: Token used only for PR comment upsert
+    required: false
+    default: ${{ github.token }}
+  comment-author:
+    description: Login expected to own an existing marked comment
+    required: false
+    default: github-actions[bot]
+  blocking:
+    description: Fail the action when analysis, policy, installation, or commenting fails
+    required: false
+    default: "false"
+
+outputs:
+  outcome:
+    description: passed, failed, notApplicable, or error
+    value: ${{ steps.run.outputs.outcome }}
+  policy-status:
+    description: Policy status from the versioned WhatCoverage JSON report
+    value: ${{ steps.run.outputs.policy-status }}
+  exit-code:
+    description: WhatCoverage process exit code (empty when it could not run)
+    value: ${{ steps.run.outputs.exit-code }}
+  markdown-report:
+    description: Absolute path to the Markdown report
+    value: ${{ steps.run.outputs.markdown-report }}
+  json-report:
+    description: Absolute path to the JSON report
+    value: ${{ steps.run.outputs.json-report }}
+
+runs:
+  using: composite
+  steps:
+    - name: Cache verified WhatCoverage archive
+      if: inputs.executable == ''
+      uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+      with:
+        path: ${{ runner.tool_cache }}/whatcoverage/${{ inputs.whatcoverage-version }}
+        key: whatcoverage-${{ inputs.whatcoverage-version }}-${{ runner.os }}-${{ runner.arch }}
+    - id: run
+      shell: bash
+      env:
+        INPUT_COVERAGE_INPUT: ${{ inputs.coverage-input }}
+        INPUT_BASE: ${{ inputs.base }}
+        INPUT_HEAD: ${{ inputs.head }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_COMPARISON: ${{ inputs.comparison }}
+        INPUT_CAPTURED_SOURCE_ROOT: ${{ inputs.captured-source-root }}
+        INPUT_MINIMUM: ${{ inputs.minimum }}
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_NO_CONFIG: ${{ inputs.no-config }}
+        INPUT_MARKDOWN_OUTPUT: ${{ inputs.markdown-output }}
+        INPUT_JSON_OUTPUT: ${{ inputs.json-output }}
+        INPUT_WHATCOVERAGE_VERSION: ${{ inputs.whatcoverage-version }}
+        INPUT_EXECUTABLE: ${{ inputs.executable }}
+        INPUT_COMMENT: ${{ inputs.comment }}
+        INPUT_PR_NUMBER: ${{ inputs.pr-number }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_COMMENT_AUTHOR: ${{ inputs.comment-author }}
+        INPUT_BLOCKING: ${{ inputs.blocking }}
+      run: "$GITHUB_ACTION_PATH/scripts/execute.sh"
