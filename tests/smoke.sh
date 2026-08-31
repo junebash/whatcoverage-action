@@ -28,6 +28,7 @@ printf 'unchanged\n' > "$fixture/Sources/App.swift"
 git -C "$fixture" add .
 git -C "$fixture" commit -qm base
 base="$(git -C "$fixture" rev-parse HEAD)"
+fixture_root="$(git -C "$fixture" rev-parse --show-toplevel)"
 printf 'unchanged\nchanged\n' > "$fixture/Sources/App.swift"
 git -C "$fixture" commit -qam head
 cat > "$fixture/coverage.json" <<'JSON'
@@ -105,9 +106,9 @@ export GITHUB_OUTPUT="$fixture/rich-output"
 (cd "$fixture" && "$root/scripts/execute.sh")
 head_sha="$(git -C "$fixture" rev-parse HEAD)"
 grep -Fxq -- '--report' "$RENDER_ARGUMENTS"
-grep -Fxq -- "$fixture/action-report.json" "$RENDER_ARGUMENTS"
+grep -Fxq -- "$fixture_root/action-report.json" "$RENDER_ARGUMENTS"
 grep -Fxq -- "$head_sha" "$RENDER_ARGUMENTS"
-grep -Fxq -- "$fixture" "$RENDER_ARGUMENTS"
+grep -Fxq -- "$fixture_root" "$RENDER_ARGUMENTS"
 grep -Fxq -- 'https://github.example/owner/repo/actions/runs/123' "$RENDER_ARGUMENTS"
 jq -e '.body | contains("# Rich WhatCoverage")' "$RICH_PAYLOAD" >/dev/null
 echo 'smoke test passed'
