@@ -68,9 +68,10 @@ Do not rely only on `continue-on-error`: that makes branch-protection behavior h
 | `no-config`            | `false`                     | Disables `.whatcoverage.toml` discovery; mutually exclusive with `config` |
 | `markdown-output`      | `what-coverage-report.md`   | Swift-rendered report                                                     |
 | `json-output`          | `what-coverage-report.json` | WhatCoverage report schema v1                                             |
-| `whatcoverage-version` | `0.6.0`                     | Must be present in this action release's `checksums.txt`                  |
+| `whatcoverage-version` | `0.9.0`                     | Must be present in this action release's `checksums.txt`                  |
 | `executable`           | unset                       | Trusted local tool path; skips release download and checksum verification |
 | `comment`              | `true`                      | Upsert one marked bot comment; requires `pull-requests: write`            |
+| `rich-comment`         | `false`                     | Use the v0.9.0+ rich renderer for the comment body                         |
 | `pr-number`            | event PR                    | Required outside a `pull_request` event when commenting                   |
 | `github-token`         | `github.token`              | Used only by the comment request                                          |
 | `comment-author`       | `github-actions[bot]`       | Change when `github-token` belongs to another bot                         |
@@ -99,6 +100,22 @@ The upstream WhatCoverage repository (and tool contributors) must test the execu
 
 Relative executable paths are resolved from the repository root and must name an executable regular file. This is an explicit trust boundary: the action neither downloads nor verifies a supplied executable. Use it only for a tool intentionally built by the current job. Normal consumers should omit it and retain the checksum-verified installation path. `comment: false` is appropriate when upstream's separate trusted `workflow_run` renderer owns rich PR comments.
 
+### Rich PR comments (WhatCoverage 0.9.0+)
+
+Rich comments are opt-in, so upgrading the action does not change existing comment bodies. Select a pinned WhatCoverage 0.9.0 or newer release and enable the renderer:
+
+```yaml
+- uses: junebash/whatcoverage-action@v1
+  with:
+    coverage-input: TestResults.xcresult
+    base: ${{ github.event.pull_request.base.sha }}
+    head: ${{ github.event.pull_request.head.sha }}
+    whatcoverage-version: 0.9.0
+    rich-comment: true
+```
+
+The action invokes the checksum-verified `what-coverage-pr-comment render` executable from the same release archive with the JSON report, resolved head commit, repository checkout, and current Actions run URL. It then sends the rendered Markdown through the same marked-comment upsert used for flat reports. Releases older than 0.9.0 fail with a clear configuration error when rich mode is requested. For a local build, put an executable `what-coverage-pr-comment` beside the path supplied through `executable`.
+
 ## Configuration
 
 WhatCoverage discovers `.whatcoverage.toml` at the Git root. For example:
@@ -118,21 +135,21 @@ Path matching, last-match-wins behavior, threshold validation, changed executabl
 
 Use `contents: read` and add only `pull-requests: write` for comments. `actions/checkout` should use `persist-credentials: false`; the action does not need repository write access. The default `GITHUB_TOKEN` is sufficient in a private repository when Actions is allowed to create PR comments.
 
-Pull requests from forks normally receive a read-only token, so comments may fail while analysis still works in non-blocking mode. Do **not** switch this workflow to `pull_request_target` and then execute or test untrusted PR code. For fork-heavy repositories, set `comment: false` in the unprivileged analysis job and use a separately reviewed `workflow_run` comment workflow. Upstream's richer source-excerpt comment flow demonstrates that trust boundary; v0.6.0 release archives currently contain only `what-coverage`, not `what-coverage-pr-comment`, so this action posts only the standard Markdown rendered by the released Swift binary.
+Pull requests from forks normally receive a read-only token, so comments may fail while analysis still works in non-blocking mode. Do **not** switch this workflow to `pull_request_target` and then execute or test untrusted PR code. For fork-heavy repositories, set `comment: false` in the unprivileged analysis job and use a separately reviewed `workflow_run` comment workflow. Rich comments read source from the checked-out commit; enable them only in a workflow that intentionally trusts that checkout and token boundary.
 
 The upsert escapes the whole report through `jq`, selects only comments whose author matches `comment-author` and which carry this action's versioned marker, follows issue-comment pagination, and never interprets Markdown content. When supplying a GitHub App or bot token, set `comment-author` to that account's login. Private repositories still send the report to GitHub as a PR comment; disable comments if coverage paths or counts are sensitive.
 
 ## Supported runners and caching
 
-The upstream v0.6.0 release provides macOS arm64, macOS x86_64, and Linux x86_64 archives. Linux requires glibc 2.35 or newer (Ubuntu 22.04+/Debian 12+); Xcode input requires macOS with Xcode 16+. Git and `jq` are required.
+The upstream v0.9.0 release provides macOS arm64, macOS x86_64, and Linux x86_64 archives. Linux requires glibc 2.35 or newer (Ubuntu 22.04+/Debian 12+); Xcode input requires macOS with Xcode 16+. Git and `jq` are required.
 
-The action caches the version/platform archive with `actions/cache`, re-verifies its pinned SHA-256 on every use, and extracts a fresh executable. The checksum is not downloaded from the same mutable release at runtime. Add a new version only after reviewing its release and copying all published platform checksums into `checksums.txt`.
+The action caches the version/platform archive with `actions/cache`, re-verifies its pinned SHA-256 on every use, and extracts fresh executables. Starting with v0.9.0, it installs both `what-coverage` and `what-coverage-pr-comment` from the verified archive. The checksum is not downloaded from the same mutable release at runtime. Add a new version only after reviewing its release and copying all published platform checksums into `checksums.txt`.
 
 ## Releases and versioning
 
 Action releases follow SemVer:
 
-1. Update the pinned upstream version/checksums and run `tests/smoke.sh` on Linux and macOS.
+1. Update the pinned upstream version/checksums. For v0.9.0+, confirm every archive contains both executables, then run `tests/smoke.sh` on Linux and macOS.
 2. Create a signed, immutable action tag such as `v1.0.0` from the reviewed commit and publish release notes naming the upstream version.
 3. Move the convenience major tag (`v1`) to that exact commit. Consumers wanting immutability should pin the full commit SHA; consumers accepting reviewed compatible updates can use `@v1`.
 4. Never move or recreate a full SemVer tag. Use a new patch/minor/major tag for every change.
@@ -146,4 +163,4 @@ tests/smoke.sh
 tests/comment.sh
 ```
 
-The smoke test downloads and verifies the real v0.6.0 Linux/macOS archive, rejects a corrupted cached archive, checks `--help`, creates a two-commit Git fixture plus LLVM export, verifies Swift's threshold-failure reports, and exercises both non-blocking and blocking wrapper behavior. The comment test uses a fake API transport to verify safe JSON payload creation and both create/update paths. CI runs both on Ubuntu 22.04 and macOS 14.
+The smoke test downloads and verifies the real pinned Linux/macOS archive, rejects a corrupted cached archive, checks `--help`, creates a two-commit Git fixture plus LLVM export, verifies Swift's threshold-failure reports, and exercises non-blocking, blocking, rich-rendering, and old-version rejection behavior. The comment test uses a fake API transport to verify safe JSON payload creation and both create/update paths. CI runs both on Ubuntu 22.04 and macOS 14.

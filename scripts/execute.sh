@@ -17,7 +17,7 @@ if [[ "$INPUT_BLOCKING" != true && "$INPUT_BLOCKING" != false ]]; then
   echo "::error::BLOCKING must be true or false"
   exit 64
 fi
-for value in INPUT_NO_CONFIG INPUT_COMMENT; do
+for value in INPUT_NO_CONFIG INPUT_COMMENT INPUT_RICH_COMMENT; do
   if [[ "${!value}" != true && "${!value}" != false ]]; then
     fail_or_warn "${value#INPUT_} must be true or false" 64
   fi
@@ -27,6 +27,17 @@ if [[ -n "$INPUT_CONFIG" && "$INPUT_NO_CONFIG" == true ]]; then
 fi
 
 repository_root="$(git rev-parse --show-toplevel 2>/dev/null)" || fail_or_warn "the current workspace is not a Git repository" 66
+if [[ "$INPUT_RICH_COMMENT" == true ]]; then
+  if [[ "$INPUT_WHATCOVERAGE_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+    version_major="${BASH_REMATCH[1]}"
+    version_minor="${BASH_REMATCH[2]}"
+  else
+    fail_or_warn "rich-comment requires WhatCoverage 0.9.0 or newer" 64
+  fi
+  if (( 10#$version_major == 0 && 10#$version_minor < 9 )); then
+    fail_or_warn "rich-comment requires WhatCoverage 0.9.0 or newer" 64
+  fi
+fi
 markdown_report="$(absolute_path "$INPUT_MARKDOWN_OUTPUT")"
 json_report="$(absolute_path "$INPUT_JSON_OUTPUT")"
 write_output markdown-report "$markdown_report"
@@ -68,7 +79,21 @@ if [[ "$INPUT_COMMENT" == true ]]; then
     pr_number="$(jq -r '.pull_request.number // empty' "$GITHUB_EVENT_PATH")"
   fi
   [[ "$pr_number" =~ ^[1-9][0-9]*$ ]] || fail_or_warn "pr-number is required outside a pull_request event"
-  "$GITHUB_ACTION_PATH/scripts/comment.sh" "$markdown_report" "$pr_number" || fail_or_warn "failed to post or update the PR comment"
+  comment_report="$markdown_report"
+  if [[ "$INPUT_RICH_COMMENT" == true ]]; then
+    comment_binary="$(dirname "$binary")/what-coverage-pr-comment"
+    [[ -f "$comment_binary" && -x "$comment_binary" ]] || fail_or_warn "what-coverage-pr-comment is unavailable; rich-comment requires both executables from WhatCoverage 0.9.0 or newer" 64
+    head_sha="$(git rev-parse --verify "${INPUT_HEAD}^{commit}" 2>/dev/null)" || fail_or_warn "head does not resolve to a Git commit: $INPUT_HEAD" 64
+    [[ "$head_sha" =~ ^[0-9a-f]{40,64}$ ]] || fail_or_warn "head resolved to an invalid Git SHA" 64
+    [[ -n "${GITHUB_SERVER_URL:-}" && -n "${GITHUB_REPOSITORY:-}" && -n "${GITHUB_RUN_ID:-}" ]] || fail_or_warn "GITHUB_SERVER_URL, GITHUB_REPOSITORY, and GITHUB_RUN_ID are required for rich comments" 64
+    run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+    comment_report="$(mktemp "${RUNNER_TEMP:-/tmp}/whatcoverage-rich-comment.XXXXXX")" || fail_or_warn "failed to create rich comment output"
+    trap 'rm -f "$comment_report"' EXIT
+    "$comment_binary" render --report "$json_report" --head "$head_sha" --repo-root "$repository_root" --run-url "$run_url" --output "$comment_report" || fail_or_warn "failed to render the rich PR comment"
+    [[ -s "$comment_report" ]] || fail_or_warn "rich comment renderer did not produce Markdown"
+  fi
+  "$GITHUB_ACTION_PATH/scripts/comment.sh" "$comment_report" "$pr_number" || fail_or_warn "failed to post or update the PR comment"
+  [[ "$INPUT_RICH_COMMENT" == true ]] && rm -f "$comment_report"
 fi
 
 {
