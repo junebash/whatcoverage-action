@@ -44,4 +44,13 @@ trap 'rm -rf "$extract"' EXIT
 tar -C "$extract" -xzf "$cache/$archive"
 install -m 755 "$extract/what-coverage" "$cache/what-coverage"
 
+IFS=. read -r major minor patch <<< "$version"
+if (( major > 0 || minor >= 9 )); then
+  if [[ ! -f "$extract/what-coverage-pr-comment" ]]; then
+    echo "WhatCoverage v$version archive does not contain what-coverage-pr-comment" >&2
+    exit 1
+  fi
+  install -m 755 "$extract/what-coverage-pr-comment" "$cache/what-coverage-pr-comment"
+fi
+
 printf '%s\n' "$cache/what-coverage"

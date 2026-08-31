@@ -48,7 +48,7 @@ inputs:
   whatcoverage-version:
     description: Pinned upstream WhatCoverage release version supported by this action
     required: false
-    default: 0.6.0
+    default: 0.9.0
   executable:
     description: Explicit trusted local what-coverage executable; skips download and verification
     required: false
@@ -56,6 +56,10 @@ inputs:
     description: Post or update the rendered Markdown on the pull request
     required: false
     default: "true"
+  rich-comment:
+    description: Render the PR comment with what-coverage-pr-comment (requires WhatCoverage 0.9.0 or newer)
+    required: false
+    default: "false"
   pr-number:
     description: Pull request number; inferred from pull_request events when omitted
     required: false
@@ -115,6 +119,7 @@ runs:
         INPUT_WHATCOVERAGE_VERSION: ${{ inputs.whatcoverage-version }}
         INPUT_EXECUTABLE: ${{ inputs.executable }}
         INPUT_COMMENT: ${{ inputs.comment }}
+        INPUT_RICH_COMMENT: ${{ inputs.rich-comment }}
         INPUT_PR_NUMBER: ${{ inputs.pr-number }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
         INPUT_COMMENT_AUTHOR: ${{ inputs.comment-author }}
