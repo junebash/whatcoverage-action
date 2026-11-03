@@ -68,7 +68,7 @@ Do not rely only on `continue-on-error`: that makes branch-protection behavior h
 | `no-config`            | `false`                     | Disables `.whatcoverage.toml` discovery; mutually exclusive with `config` |
 | `markdown-output`      | `what-coverage-report.md`   | Swift-rendered report                                                     |
 | `json-output`          | `what-coverage-report.json` | WhatCoverage report schema v1                                             |
-| `whatcoverage-version` | `0.9.0`                     | Must be present in this action release's `checksums.txt`                  |
+| `whatcoverage-version` | `0.12.0`                    | Must be present in this action release's `checksums.txt`                  |
 | `executable`           | unset                       | Trusted local tool path; skips release download and checksum verification |
 | `comment`              | `true`                      | Upsert one marked bot comment; requires `pull-requests: write`            |
 | `rich-comment`         | `false`                     | Use the v0.9.0+ rich renderer for the comment body                         |
@@ -110,7 +110,7 @@ Rich comments are opt-in, so upgrading the action does not change existing comme
     coverage-input: TestResults.xcresult
     base: ${{ github.event.pull_request.base.sha }}
     head: ${{ github.event.pull_request.head.sha }}
-    whatcoverage-version: 0.9.0
+    whatcoverage-version: 0.12.0
     rich-comment: true
 ```
 
@@ -141,7 +141,7 @@ The upsert escapes the whole report through `jq`, selects only comments whose au
 
 ## Supported runners and caching
 
-The upstream v0.9.0 release provides macOS arm64, macOS x86_64, and Linux x86_64 archives. Linux requires glibc 2.35 or newer (Ubuntu 22.04+/Debian 12+); Xcode input requires macOS with Xcode 16+. Git and `jq` are required.
+The upstream v0.12.0 release provides macOS arm64, macOS x86_64, and Linux x86_64 archives. Linux requires glibc 2.35 or newer (Ubuntu 22.04+/Debian 12+); Xcode input requires macOS with Xcode 16+. Git and `jq` are required.
 
 The action caches the version/platform archive with `actions/cache`, re-verifies its pinned SHA-256 on every use, and extracts fresh executables. Starting with v0.9.0, it installs both `what-coverage` and `what-coverage-pr-comment` from the verified archive. The checksum is not downloaded from the same mutable release at runtime. Add a new version only after reviewing its release and copying all published platform checksums into `checksums.txt`.
 
