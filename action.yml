@@ -48,7 +48,7 @@ inputs:
   whatcoverage-version:
     description: Pinned upstream WhatCoverage release version supported by this action
     required: false
-    default: 0.9.0
+    default: 0.12.0
   executable:
     description: Explicit trusted local what-coverage executable; skips download and verification
     required: false

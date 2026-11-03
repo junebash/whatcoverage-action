@@ -7,17 +7,17 @@ export RUNNER_TOOL_CACHE="$(mktemp -d)"
 fixture="$(mktemp -d)"
 trap 'rm -rf "$RUNNER_TOOL_CACHE" "$fixture"' EXIT
 
-binary="$($root/scripts/install.sh 0.9.0)"
+binary="$($root/scripts/install.sh 0.12.0)"
 "$binary" --help | grep -q 'USAGE: what-coverage'
 "$(dirname "$binary")/what-coverage-pr-comment" --help | grep -q 'what-coverage-pr-comment render'
 archive="$(find "$RUNNER_TOOL_CACHE" -name '*.tar.gz' -print -quit)"
 printf 'corrupt' >> "$archive"
 set +e
-"$root/scripts/install.sh" 0.9.0 >/dev/null 2>&1
+"$root/scripts/install.sh" 0.12.0 >/dev/null 2>&1
 status=$?
 set -e
 [[ "$status" == 1 && ! -e "$archive" ]]
-binary="$($root/scripts/install.sh 0.9.0)"
+binary="$($root/scripts/install.sh 0.12.0)"
 
 git -C "$fixture" init -q
 git -C "$fixture" config user.email test@example.com
@@ -100,7 +100,7 @@ if [[ "$method" == GET ]]; then printf '[]' > "$output"; else cp "${data#@}" "$R
 SH
 chmod +x "$tools/what-coverage-pr-comment" "$tools/curl"
 export PATH="$tools:$PATH" RENDER_ARGUMENTS="$fixture/render-arguments" RICH_PAYLOAD="$fixture/rich-payload"
-export INPUT_EXECUTABLE="$tools/what-coverage" INPUT_RICH_COMMENT=true INPUT_WHATCOVERAGE_VERSION=0.9.0 INPUT_COMMENT=true INPUT_PR_NUMBER=7
+export INPUT_EXECUTABLE="$tools/what-coverage" INPUT_RICH_COMMENT=true INPUT_WHATCOVERAGE_VERSION=0.12.0 INPUT_COMMENT=true INPUT_PR_NUMBER=7
 export INPUT_GITHUB_TOKEN=test GITHUB_REPOSITORY=owner/repo GITHUB_SERVER_URL=https://github.example GITHUB_RUN_ID=123
 export GITHUB_OUTPUT="$fixture/rich-output"
 (cd "$fixture" && "$root/scripts/execute.sh")
